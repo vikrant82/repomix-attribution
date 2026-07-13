@@ -127,7 +127,7 @@ def load_config(config_path: str | Path) -> List[str]:
             config = json.loads(raw)
         elif suffix in (".yaml", ".yml"):
             try:
-                import yaml  # type: ignore[import-not-found, unused-ignore]
+                import yaml  # type: ignore[import-untyped]
             except ImportError as exc:
                 raise ConfigError(
                     "PyYAML is required to load .yaml/.yml configs. "

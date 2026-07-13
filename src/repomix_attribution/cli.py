@@ -9,10 +9,10 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Callable, Optional, Sequence
 
 from repomix_attribution import __version__
-from repomix_attribution.analysis import analyze
+from repomix_attribution.analysis import analyze, Categorizer
 from repomix_attribution.config import discover_config, load_config
 from repomix_attribution.errors import (
     ConfigError,
@@ -126,10 +126,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     compiled = compile_patterns(patterns)
 
     if using_auto_detect and not patterns:
-        # Use auto-detect categorizer
+        # Use auto-detect categorizer (wraps to match expected signature)
         from repomix_attribution.matcher import auto_detect_category
 
-        categorizer = auto_detect_category
+        categorizer: Categorizer = lambda path, _compiled: auto_detect_category(path)
     else:
         categorizer = match_category
 
