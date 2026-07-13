@@ -1,0 +1,15 @@
+[build-system]
+requires = ["setuptools>=45"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "repomix-attribution"
+version = "1.0.0"
+description = "Compute byte attribution of files in a repomix output by include-pattern category"
+requires-python = ">=3.7"
+
+[project.scripts]
+repomix-attribution = "repomix_attribution.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
