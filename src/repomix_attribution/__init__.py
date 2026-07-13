@@ -261,6 +261,72 @@ def print_json_summary(
 
 
 # ---------------------------------------------------------------------------
+# Auto-detect categories (fallback when no config)
+# ---------------------------------------------------------------------------
+
+
+def auto_detect_categories(file_path: str) -> str:
+    """Auto-detect category from file path when no config is available.
+
+    Uses common directory patterns to infer categories.
+    """
+    # Extract the top-level directory structure
+    parts = Path(file_path).parts
+
+    if len(parts) == 0:
+        return "root"
+
+    # Check for common patterns
+    if parts[0] == "src":
+        return "src/**"
+    elif parts[0] == "test" or parts[0].endswith(".test"):
+        return "test/**"
+    elif parts[0] == "tests":
+        return "tests/**"
+    elif parts[0] == "docs":
+        return "docs/**"
+    elif parts[0] == "scripts":
+        return "scripts/**"
+    elif parts[0] == "lib":
+        return "lib/**"
+    elif parts[0] == "packages":
+        # For monorepos, use the package name
+        if len(parts) > 1:
+            return f"packages/{parts[1]}/**"
+        return "packages/**"
+    elif parts[0] == "apps":
+        if len(parts) > 1:
+            return f"apps/{parts[1]}/**"
+        return "apps/**"
+    elif parts[0] == "tools":
+        return "tools/**"
+    elif parts[0] == "examples":
+        return "examples/**"
+    elif parts[0] == "fixtures":
+        return "fixtures/**"
+    elif parts[0] == "assets":
+        return "assets/**"
+    elif parts[0] == "config":
+        return "config/**"
+    elif parts[0] == "infra":
+        return "infra/**"
+    elif parts[0] == "deploy":
+        return "deploy/**"
+    elif parts[0] == "ci":
+        return "ci/**"
+    elif parts[0] == ".github":
+        return ".github/**"
+    else:
+        # For root-level files or unknown structures, use the first component
+        return parts[0] + ("/**" if len(parts) > 1 else "")
+
+
+def match_auto_category(file_path: str, _patterns: list) -> str:
+    """Match a file to an auto-detected category (ignores patterns param)."""
+    return auto_detect_categories(file_path)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -279,7 +345,7 @@ def main(argv: Optional[list] = None) -> int:
         "--config",
         "-c",
         default=None,
-        help="Path to repomix config file (default: auto-detect repomix.config.json5/.json/.yaml/.yml)",
+        help="Path to repomix config file (default: auto-detect repomix.config.json5/.json/.yaml/.yml, or auto-detect categories from paths)",
     )
     parser.add_argument(
         "--json",
@@ -297,10 +363,12 @@ def main(argv: Optional[list] = None) -> int:
     args = parser.parse_args(argv)
 
     # Resolve config path
+    config_path = None
+    using_auto_detect = False
+
     if args.config:
         config_path = args.config
     else:
-        config_path = None
         for name in (
             "repomix.config.json5",
             "repomix.config.json",
@@ -310,21 +378,30 @@ def main(argv: Optional[list] = None) -> int:
             if os.path.exists(name):
                 config_path = name
                 break
-        if not config_path:
+
+    # Load include patterns (or auto-detect if no config)
+    if config_path:
+        try:
+            include_patterns = load_config(config_path)
+            compiled = [(p, pattern_to_regex(p)) for p in include_patterns]
+            match_func = match_category
+        except Exception as e:
+            print(f"Warning: Could not load config {config_path}: {e}", file=sys.stderr)
             print(
-                "Error: No repomix config found. Use --config to specify one.",
+                "Falling back to auto-detected categories from file paths.",
                 file=sys.stderr,
             )
-            return 1
-
-    # Load include patterns
-    try:
-        include_patterns = load_config(config_path)
-    except Exception as e:
-        print(f"Error loading config: {e}", file=sys.stderr)
-        return 1
-
-    compiled = [(p, pattern_to_regex(p)) for p in include_patterns]
+            using_auto_detect = True
+            compiled = []
+            match_func = match_auto_category
+    else:
+        print(
+            "No repomix config found. Using auto-detected categories from file paths.",
+            file=sys.stderr,
+        )
+        using_auto_detect = True
+        compiled = []
+        match_func = match_auto_category
 
     # Parse output
     output_path = args.output
@@ -341,7 +418,7 @@ def main(argv: Optional[list] = None) -> int:
     unmatched = []
     for file_path, section in file_sections:
         size = len(section.encode("utf-8"))
-        cat = match_category(file_path, compiled)
+        cat = match_func(file_path, compiled)
         if cat:
             if cat not in categories:
                 categories[cat] = {"count": 0, "bytes": 0}

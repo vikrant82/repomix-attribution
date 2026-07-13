@@ -24,6 +24,9 @@ repomix-attribution
 # Specify custom paths
 repomix-attribution -c repomix.config.json5 -o repomix-output.md
 
+# Without config (auto-detects categories from file paths)
+repomix-attribution -o /path/to/repomix-output.md
+
 # Output JSON summary (useful for automation)
 repomix-attribution --json
 
@@ -32,6 +35,8 @@ repomix-attribution --sort bytes    # default, largest first
 repomix-attribution --sort count    # by file count
 repomix-attribution --sort name     # alphabetically
 ```
+
+**Note:** The repomix config file is optional. If not found, categories are auto-detected from common directory patterns (src/, test/, docs/, packages/, etc.).
 
 ## Options
 
